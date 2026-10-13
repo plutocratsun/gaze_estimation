@@ -5,6 +5,13 @@ import cv2
 import numpy as np
 
 
+def imread_u(path, flags=cv2.IMREAD_GRAYSCALE):
+  """cv2.imread 대신 쓴다. Windows에서 cv2.imread는 경로에 비-ASCII(한글 등) 문자가 있으면
+  파일이 멀쩡해도 조용히 None을 돌려준다. np.fromfile + cv2.imdecode는 그 문제가 없다."""
+  data = np.fromfile(str(path), dtype=np.uint8)
+  return cv2.imdecode(data, flags)
+
+
 def gazeto2d(gaze):
   yaw = np.arctan2(-gaze[0], -gaze[2])
   pitch = np.arcsin(-gaze[1])
@@ -44,7 +51,7 @@ class loader:
     label = np.array(gaze2d.split(","), dtype=np.float32)
     headpose = np.array(head2d.split(","), dtype=np.float32)
 
-    img = cv2.imread(os.path.join(self.root, eye), cv2.IMREAD_GRAYSCALE)
+    img = imread_u(os.path.join(self.root, eye), cv2.IMREAD_GRAYSCALE)
     if img is None:
       raise FileNotFoundError(os.path.join(self.root, eye))
     img = np.expand_dims(img.astype(np.float32) / 255.0, 0)

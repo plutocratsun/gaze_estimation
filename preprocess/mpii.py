@@ -45,6 +45,23 @@ def _deps():
     cv2, np, sio, dpc = _cv2, _np, _sio, _dpc
 
 
+def imread_u(path, flags=None):
+    """cv2.imread 대신 쓴다. Windows에서 cv2.imread는 경로에 비-ASCII(한글 등) 문자가 있으면
+    파일이 멀쩡해도 조용히 None을 돌려준다. np.fromfile + cv2.imdecode는 그 문제가 없다."""
+    flags = cv2.IMREAD_GRAYSCALE if flags is None else flags
+    data = np.fromfile(str(path), dtype=np.uint8)
+    return cv2.imdecode(data, flags)
+
+
+def imwrite_u(path, img, ext=".jpg"):
+    """cv2.imwrite 대신 쓴다. 같은 이유로 비-ASCII 경로에 조용히 실패할 수 있다."""
+    ok, buf = cv2.imencode(ext, img)
+    if not ok:
+        return False
+    buf.tofile(str(path))
+    return True
+
+
 def find_dataset_root(path: Path) -> Path:
     path = path.expanduser().resolve()
     candidates = [path, path / "MPIIGaze", path / "Origin", path / "MPIIGaze" / "Origin"]
@@ -116,7 +133,7 @@ def convert_person(
             im_number = int(Path(im_name).stem)
 
             im_path = person_dir / day / im_name
-            im = cv2.imread(str(im_path), cv2.IMREAD_GRAYSCALE)
+            im = imread_u(im_path, cv2.IMREAD_GRAYSCALE)
             if im is None:
                 raise FileNotFoundError(f"이미지를 읽지 못했다: {im_path}")
 
@@ -146,7 +163,7 @@ def convert_person(
             rvec, svec = norm.GetParams()
 
             save_name = f"{count + 1}.jpg"
-            cv2.imwrite(str(image_out / save_name), im_eye)
+            imwrite_u(image_out / save_name, im_eye)
 
             rel_image = f"{person}/{save_name}"
             row = " ".join(
@@ -210,7 +227,7 @@ def convert(dataset: Path, out_root: Path, persons: list[str] | None = None, sca
 def _verify_output(out_root: Path, n_person: int, n_sample: int) -> None:
     labels = sorted((out_root / "Label").glob("*.label"))
     probe = out_root / "Image" / labels[0].stem / "1.jpg"
-    img = cv2.imread(str(probe), cv2.IMREAD_GRAYSCALE)
+    img = imread_u(probe, cv2.IMREAD_GRAYSCALE)
     if img is None:
         raise RuntimeError(f"전처리 결과를 읽지 못했다: {probe}")
     h, w = img.shape
